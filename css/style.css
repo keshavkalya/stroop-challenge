@@ -1,0 +1,823 @@
+/* style.css — "Neural Lab" design system.
+   Theme: a dark neuroscience-lab HUD. One brand colour (neural cyan),
+   thin 1px lines, and the six game ink colours as the only "loud" colours.
+   Rule: every UI colour comes from a token in :root.
+   (The game ink colours live in js/data.js, the single source.) */
+
+/* ---------- 1. DESIGN TOKENS ---------- */
+:root {
+  /* Surfaces: deep teal-black, getting lighter as they get closer to the player */
+  --bg: #04121A;
+  --card: #071C27;
+  --surface: #0B2531;
+  --surface-2: #123343;
+
+  /* Text */
+  --text: #E8FAFF;
+  --muted: #8FB4C0;     /* 7:1 on --surface */
+
+  /* Colours with a job */
+  --brand: #22D3EE;     /* neural cyan: CTA, timer, ring, brain lines */
+  --brand-ink: #031A22; /* text on top of --brand (high contrast) */
+  --success: #34D399;   /* correct answer */
+  --warning: #FBBF24;   /* streak, low time */
+  --danger: #DC2626;    /* wrong answer fill */
+  --danger-text: #FF8A8A;
+
+  /* Lines and glows */
+  --border: rgba(34, 211, 238, 0.18);
+  --border-strong: rgba(34, 211, 238, 0.45);
+  --glow-brand: 0 0 22px rgba(34, 211, 238, 0.4);
+  --glow-success: 0 0 22px rgba(52, 211, 153, 0.5);
+  --glow-danger: 0 0 22px rgba(220, 38, 38, 0.55);
+
+  /* Type */
+  --font-display: "Exo 2", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius: 14px;
+}
+
+/* ---------- 2. BASE ---------- */
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, p { margin: 0; }
+strong { font-weight: 700; }
+
+/* Visible focus ring for keyboard users */
+:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+
+/* ---------- 3. THE CARD ---------- */
+.card {
+  position: relative;
+  z-index: 1;
+  /* Width is limited by BOTH 420px and the screen height, so the 9:16
+     card always fits in a short window. */
+  width: min(420px, calc((100dvh - 32px) * 9 / 16));
+  aspect-ratio: 9 / 16;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  /* A faint glow from the top, like a screen lit from above,
+     plus a fine grid so the card feels like a lab display. */
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(34, 211, 238, 0.10), transparent 70%),
+    linear-gradient(rgba(34, 211, 238, 0.045) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, rgba(34, 211, 238, 0.045) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--card);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 80px rgba(34, 211, 238, 0.10);
+}
+
+/* Phones: full-screen, no rounded corners */
+@media (max-width: 480px) {
+  .card {
+    width: 100%;
+    height: 100dvh;
+    aspect-ratio: auto;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+}
+
+/* ---------- 4. SCREENS ---------- */
+.screen {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 60px 20px 20px; /* top space leaves room for the mute button */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.screen.active { display: flex; }
+
+/* The result screen is tall, so it scrolls on small phones */
+.screen-scroll {
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+/* Phone layout: the .pane wrappers are invisible, children stack as before */
+.pane { display: contents; }
+
+/* ---------- 5. BUTTONS ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  /* translate / scale are separate properties, so they never fight with
+     GSAP, which animates `transform` */
+  transition: translate 150ms ease, scale 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+.btn:active { scale: 0.96; }
+@media (hover: hover) {
+  .btn:hover { translate: 0 -2px; background: #184155; }
+  .btn-primary:hover { background: #5BE3F5; }
+}
+
+.btn-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: var(--glow-brand);
+}
+
+/* Pulsing glow on the Play button (only when motion is allowed) */
+@media (prefers-reduced-motion: no-preference) {
+  .btn-play { animation: pulse-glow 2s ease-in-out infinite; }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(34, 211, 238, 0.3); }
+  50%      { box-shadow: 0 0 30px rgba(34, 211, 238, 0.65); }
+}
+
+/* Round icon-only button (mute) */
+.topbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: scale 150ms ease, background-color 150ms ease;
+}
+.icon-btn:active { scale: 0.92; }
+@media (hover: hover) {
+  .icon-btn:hover { background: var(--surface-2); }
+}
+
+/* ---------- 6. ICONS (inline SVG, drawn by game.js) ---------- */
+[data-icon], .rating-icon { display: inline-flex; line-height: 0; }
+.icon {
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- 7. THE BRAIN (line-art illustration) ---------- */
+.brain { display: block; width: 100%; height: auto; overflow: visible; }
+.brain-outline {
+  fill: rgba(34, 211, 238, 0.07);
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.brain-fold {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+/* A neuron: dark dot with a ring. When "lit" it fills and glows. */
+.brain-node {
+  fill: var(--card);
+  stroke: var(--brand);
+  stroke-width: 1.5;
+  opacity: 0.8;
+  transition: fill 300ms ease, opacity 300ms ease;
+}
+.brain-node.lit {
+  fill: var(--brand);
+  opacity: 1;
+  filter: drop-shadow(0 0 4px var(--brand));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .brain.alive .brain-node.lit { animation: neuron-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes neuron-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* ---------- 8. START SCREEN ---------- */
+.hero-brain { width: 92px; }
+
+.tag {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Calm two-tone title: white + brand cyan (no rainbow) */
+.title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.3rem, 12vw, 3.2rem);
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+}
+.title-line { display: block; }
+.title-line + .title-line {
+  color: var(--brand);
+  text-shadow: 0 0 22px rgba(34, 211, 238, 0.55);
+}
+.title-letter { display: inline-block; /* each letter can move on its own */ }
+
+.tagline { font-size: 1.05rem; }
+
+.demo {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.demo-word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2.6rem;
+  line-height: 1.2;
+}
+.demo-answer { color: var(--muted); font-size: 0.9rem; }
+.demo-answer strong { color: var(--text); }
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 84px;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: translate 150ms ease, scale 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+.level small {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.level:active { scale: 0.96; }
+@media (hover: hover) {
+  .level:hover { translate: 0 -2px; border-color: var(--border-strong); }
+}
+/* Selected card: bright border + soft glow + a lit signal icon */
+.level[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--surface-2);
+  box-shadow: var(--glow-brand);
+}
+
+/* Signal bars: 1, 2 or 3 bars lit = difficulty */
+.bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 14px; margin-bottom: 2px; }
+.bars i {
+  width: 5px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+}
+.bars i:nth-child(1) { height: 6px; }
+.bars i:nth-child(2) { height: 10px; }
+.bars i:nth-child(3) { height: 14px; }
+.bars i.on { background: var(--brand); border-color: var(--brand); }
+
+.hint { color: var(--muted); font-size: 0.9rem; min-height: 1.4em; }
+
+.footnote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.footnote strong { color: var(--text); }
+
+/* ---------- 9. COUNTDOWN ---------- */
+#screen-countdown { overflow: hidden; }
+.countdown-brain {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.countdown-brain .brain { width: 130%; max-width: 640px; }
+.countdown-number {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 8rem;
+  line-height: 1;
+  color: var(--brand);
+  text-shadow: 0 0 30px rgba(34, 211, 238, 0.7);
+}
+#screen-countdown .tagline { position: relative; }
+
+/* ---------- 10. GAME SCREEN ---------- */
+.screen#screen-game {
+  justify-content: flex-start;
+  padding-top: 64px;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.hud-item { display: flex; flex-direction: column; align-items: center; }
+.hud-label {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hud-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums; /* digits keep the same width, so nothing jitters */
+}
+.hud-score { color: var(--success); }
+.flame { color: var(--warning); }
+
+.timer-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.timer-bar {
+  width: 100%;
+  height: 100%;
+  background: var(--brand);
+  transform-origin: left center; /* scaleX shrinks it toward the left edge */
+}
+
+.word-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(3.5rem, 16vw, 5rem);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 26px currentColor; /* soft glow in the ink colour */
+}
+
+.answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+.answer {
+  position: relative;
+  min-height: 64px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: translate 150ms ease, scale 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.answer:active { scale: 0.96; }
+@media (hover: hover) {
+  .answer:hover { translate: 0 -2px; background: #184155; }
+}
+.answer .key {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.answer .dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.answer.correct {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--brand-ink);
+  box-shadow: var(--glow-success);
+}
+.answer.correct .key { color: var(--brand-ink); }
+.answer.wrong {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  box-shadow: var(--glow-danger);
+}
+.answer.wrong .key { color: #fff; }
+
+/* ---------- 11. RESULT SCREEN ---------- */
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.result-brain { width: 64px; flex-shrink: 0; }
+.result-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.ring {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+}
+.ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* start the fill at 12 o'clock */
+}
+.ring circle {
+  fill: none;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.ring-track { stroke: var(--surface-2); }
+.ring-fill {
+  stroke: var(--brand);
+  filter: drop-shadow(0 0 5px var(--brand));
+}
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding-top: 38px;
+  font-family: var(--font-display);
+}
+.ring-score { font-size: 3.2rem; font-weight: 800; line-height: 1; }
+.ring-total { font-size: 1.1rem; font-weight: 700; color: var(--muted); }
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.rating-icon { color: var(--warning); }
+.rating-icon .icon { width: 1.4em; height: 1.4em; }
+
+.badge-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: var(--brand-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+.badge-best[hidden] { display: none; }
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.stat-label {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Review list (collapsible) */
+.review {
+  width: 100%;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.review summary {
+  min-height: 48px;
+  padding: 12px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.review ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 10px;
+}
+.review li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.review-word {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.review-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-align: right;
+}
+.review-ok { color: var(--success); }
+.review-bad { color: var(--danger-text); }
+.review-timeup { color: var(--warning); }
+
+.fact {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border-left: 3px solid var(--brand);
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: left;
+}
+.fact strong { color: var(--text); }
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+/* ---------- 12. CANVAS LAYERS ---------- */
+#bg-canvas, #fx-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* clicks pass straight through */
+}
+#bg-canvas { z-index: 0; }
+#fx-canvas { z-index: 20; }
+
+/* ---------- 13. GAME FEEL (CSS side) ---------- */
+
+/* Last 5 seconds: the timer bar and time text pulse */
+.timer-track.urgent .timer-bar { animation: urgent-pulse 0.5s ease-in-out infinite; }
+.hud-time-urgent { color: var(--danger-text); }
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* "+1" that floats up from a correct answer */
+.plus-one {
+  position: absolute;
+  z-index: 6;
+  translate: -50% -50%; /* centre on the point; GSAP animates `transform` separately */
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--success);
+  text-shadow: 0 0 12px var(--success);
+  pointer-events: none;
+}
+
+/* Streak toast */
+.toast {
+  position: absolute;
+  top: 148px; /* just below the HUD and timer bar */
+  left: 50%;
+  z-index: 6;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: var(--brand-ink);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  white-space: nowrap;
+  translate: -50% 0;
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.5);
+  pointer-events: none;
+}
+.toast.show { display: inline-flex; }
+
+/* ---------- 14. FALLBACK ANIMATIONS (used only when GSAP is missing) ---------- */
+@keyframes fb-screen-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fb-pop       { from { opacity: 0; transform: scale(0.6); }       to { opacity: 1; transform: none; } }
+@keyframes fb-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-14px); }
+  40% { transform: translateX(14px); }
+  60% { transform: translateX(-9px); }
+  80% { transform: translateX(9px); }
+}
+@keyframes fb-drop  { from { opacity: 0; transform: translateY(-60px); } to { opacity: 1; transform: none; } }
+@keyframes fb-toast { from { opacity: 0; transform: translateY(14px) scale(0.8); } to { opacity: 1; transform: none; } }
+
+.no-gsap .screen.active   { animation: fb-screen-in 350ms ease-out; }
+.no-gsap .word.fb-pop     { animation: fb-pop 220ms ease-out; }
+.no-gsap .word.fb-shake   { animation: fb-shake 350ms ease-out; }
+.no-gsap .answer          { animation: fb-pop 250ms ease-out; }
+.no-gsap .title-letter    { animation: fb-drop 600ms ease-out backwards; }
+.no-gsap .toast.show      { animation: fb-toast 300ms ease-out; }
+.no-gsap .ring-fill       { transition: stroke-dashoffset 1.2s ease-out; }
+
+/* ---------- 15. REDUCED MOTION ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- 16. LAPTOP / DESKTOP LAYOUT ---------- */
+/* Wide screens get a landscape lab-display card with two columns,
+   instead of the phone-shaped 9:16 card. */
+@media (min-width: 900px) and (min-height: 600px) {
+  .card {
+    width: min(1120px, calc(100vw - 64px));
+    height: min(700px, calc(100dvh - 48px));
+    aspect-ratio: auto;
+  }
+
+  .screen { padding: 40px 56px; gap: 18px; }
+  .topbar { top: 14px; right: 14px; }
+
+  /* Start screen: brain + title on the left, controls on the right */
+  #screen-start {
+    flex-direction: row;
+    gap: 64px;
+    justify-content: center;
+  }
+  #screen-start .pane {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex: 1;
+    max-width: 460px;
+  }
+  .hero-brain { width: 170px; }
+  .title { font-size: clamp(3.2rem, 5.5vw, 4.6rem); }
+  .tagline { font-size: 1.2rem; }
+  .demo-word { font-size: 3.4rem; }
+  .level { min-height: 96px; }
+
+  .countdown-number { font-size: 11rem; }
+
+  /* Game screen: big word, answers in ONE row */
+  .screen#screen-game { padding-top: 56px; }
+  .hud { max-width: 760px; padding: 10px 24px; }
+  .hud-value { font-size: 1.5rem; }
+  .timer-track { max-width: 760px; height: 12px; }
+  .word { font-size: clamp(5rem, 11vw, 8.5rem); }
+  .toast { top: 170px; }
+  .answers {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    max-width: 960px;
+    gap: 14px;
+  }
+  .answer { min-height: 84px; font-size: 1.35rem; }
+
+  /* Result screen: score on the left, details on the right */
+  #screen-result {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: 48px;
+    overflow: hidden;
+    padding-top: 48px;
+  }
+  #screen-result .pane {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  #screen-result .pane-summary { justify-content: center; }
+  #screen-result .pane-details { justify-content: center; overflow-y: auto; }
+  .ring { width: 170px; height: 170px; }
+  .ring-text { padding-top: 46px; }
+  .review ul { max-height: 190px; overflow-y: auto; }
+  .result-actions { flex-direction: row; flex-wrap: wrap; }
+  .result-actions .btn { flex: 1 1 160px; width: auto; font-size: 1rem; }
+}
